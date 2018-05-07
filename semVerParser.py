@@ -29,7 +29,7 @@ def find_dist(path):
             pkg_name, version = [None] * 2
             item_lower = item.lower()
             if item_lower.endswith('.dist-info'):
-                item, ext = os.path.splitext(item)
+                item, _ = os.path.splitext(item)
                 match = DIST_REGEX.match(item)
                 if match:
                     pkg_name, version =\
@@ -41,6 +41,7 @@ def _mro_getter(cls):
     ''' get_obj_mro '''
     if not isinstance(cls, type):
         class Cls(cls, object):
+            ''' class defined in-order to get mro from object '''
             pass
         return Cls.__mro__[1:]
     return cls.__mro__
@@ -48,11 +49,12 @@ def _mro_getter(cls):
 def comparison_func(a, b):
     ''' Returns Value based on comparison operator '''
     if a == b:
-        return 0
+        result = 0
     elif a < b:
-        return -1
+        result = -1
     else:
-        return 1
+        result = 1
+    return result
 
 def parse(version):
     ''' parses version to get major, minor and patch '''
@@ -94,7 +96,7 @@ class Singleton(type):
         if cls not in cls.__instance:
             cls.__instance[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls.__instance[cls]
-    
+
 
 class PackageVersion(object):
     ''' PackageVersion '''
@@ -144,7 +146,7 @@ class PackageVersion(object):
         for key, value in self.distribution.iteritems():
             if value:
                 item = (key, value)
-                yield(item)
+                yield item
 
     @property
     def size(self):
@@ -167,13 +169,10 @@ class ContextPackage(object):
 
     def _get_pkg_name(self, packageFilePath):
         ''' get package name '''
-        if 'module' in packageFilePath.lower():
-            if WINDOWS:
-                match = self.WIN_PACKAGE_REGEX.match(packageFilePath)
-            else:
-                match = self.LINUX_PACKAGE_REGEX.match(packageFilePath)
+        if WINDOWS:
+            match = self.WIN_PACKAGE_REGEX.match(packageFilePath)
         else:
-            match = self.HTTP_PACKAGE_REGEX.match(packageFilePath)
+            match = self.LINUX_PACKAGE_REGEX.match(packageFilePath)
         try:
             return match.group('pkgName')
         except AttributeError:
@@ -198,7 +197,7 @@ class ContextPackage(object):
     def __repr__(self):
         ''' __repr__ '''
         return "<PKG-NAME>: %s <VERSION>: %s" % (self.pkgName, self._version)
-        
+
     def _get_zipped_list_for_version_compare(self, other):
         ''' _get_zipped_list_for_version_compare '''
         if not other.version:
@@ -222,33 +221,33 @@ class ContextPackage(object):
 
     def __eq__(self, other):
         ''' compare equal '''
-        return self._execute_comparison_funcs(other, lambda x : x == 0)
+        return self._execute_comparison_funcs(other, lambda x: x == 0)
 
     def __ne__(self, other):
         ''' compare not equal '''
-        return self._execute_comparison_funcs(other, lambda x : x != 0)
+        return self._execute_comparison_funcs(other, lambda x: x != 0)
 
     def __gt__(self, other):
         ''' compare greater than '''
-        return self._execute_comparison_funcs(other, lambda x : x > 0)
+        return self._execute_comparison_funcs(other, lambda x: x > 0)
 
     def __lt__(self, other):
         ''' compare less than '''
-        return self._execute_comparison_funcs(other, lambda x : x < 0)
+        return self._execute_comparison_funcs(other, lambda x: x < 0)
 
     def __ge__(self, other):
         ''' compare greater than equal to '''
-        return self._execute_comparison_funcs(other, lambda x : x >= 0)
+        return self._execute_comparison_funcs(other, lambda x: x >= 0)
 
     def __le__(self, other):
         ''' compare less than equal to '''
-        return self._execute_comparison_funcs(other, lambda x : x <= 0)
+        return self._execute_comparison_funcs(other, lambda x: x <= 0)
 
 
 class TextParser(HTMLParser):
     ''' TextParser '''
     PARSER_REGEX = re.compile(r'.*whl$')
-    
+
     def __init__(self):
         # No super call as HTMLParser in not a new-style class
         HTMLParser.__init__(self)
@@ -277,12 +276,12 @@ class ExternalPackage(object):
         ''' _get_package_info '''
         httpData = self._get_http_data()
         self.parser.feed(httpData)
-    
+
     def _get_http_data(self):
         ''' _get_http_data '''
         try:
             return self.session.get(self.PKG_URL.format(self.pkgName))
-        except requests.HTTPError, requests.ConnectionError:
+        except (requests.HTTPError, requests.ConnectionError):
             raise HTTPRequestException('Could not connect to URL %s'
                                        'to fetch data' % self.PKG_URL)
 
